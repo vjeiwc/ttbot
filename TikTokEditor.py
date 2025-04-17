@@ -14,14 +14,18 @@ class TikTokEditor:
         ]
     
     def random_filter_chain(self):
-        selected = random.sample(self.effects, 2)
-        return ",".join(selected)
+        return ",".join(random.sample(self.effects, 2))
     
-    def process_video(self, input_path, output_dir):
+    def process_video(self, input_path: str, output_dir: str) -> str | None:
         try:
-            base_name = os.path.basename(input_path)
-            output_path = os.path.join(output_dir, f"processed_{datetime.now().strftime('%Y%m%d%H%M%S')}_{base_name}")
+            # Создаем папку, если её нет
+            os.makedirs(output_dir, exist_ok=True)
             
+            # Генерируем уникальное имя файла
+            timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
+            output_path = os.path.join(output_dir, f"processed_{timestamp}_{os.path.basename(input_path)}")
+            
+            # FFmpeg команда
             ffmpeg_cmd = [
                 "ffmpeg",
                 "-i", input_path,
@@ -30,14 +34,17 @@ class TikTokEditor:
                 "-preset", "fast",
                 "-crf", "22",
                 "-movflags", "+faststart",
-                "-metadata", f"creation_time={datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
-                "-y", output_path
+                "-y",  # Перезапись без подтверждения
+                output_path
             ]
             
-            subprocess.run(ffmpeg_cmd, check=True)
-            print(f"✅ Видео готово: {output_path}")
+            # Запуск обработки
+            subprocess.run(ffmpeg_cmd, check=True, stderr=subprocess.PIPE)
             return output_path
-                
+            
+        except subprocess.CalledProcessError as e:
+            print(f"FFmpeg Error: {e.stderr.decode()}")
+            return None
         except Exception as e:
-            print(f"❌ Ошибка: {str(e)}")
+            print(f"General Error: {str(e)}")
             return None
