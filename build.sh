@@ -1,17 +1,12 @@
 #!/usr/bin/env bash
 set -e
 
-# Установка FFmpeg с проверкой
+# Установка FFmpeg
 sudo apt-get update
 sudo apt-get install -y ffmpeg
 
-# Проверка версии
-echo "Версия FFmpeg:"
-ffmpeg -version | head -n 1
+# Оптимизация памяти
+sudo rm -rf /var/lib/apt/lists/*
 
-# Установка зависимостей Python
-python -m pip install --upgrade pip
-pip install -r requirements.txt
-
-# Проверка свободного места
-df -h
+# Python зависимости
+pip install --no-cache-dir -r requirements.txt
