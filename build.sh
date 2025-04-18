@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -e # Остановить при ошибках
+set -e
 
 # Установка FFmpeg
 sudo apt-get update
