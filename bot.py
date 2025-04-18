@@ -5,9 +5,8 @@ from telegram.ext import Application, CommandHandler, MessageHandler, filters
 from TikTokEditor import TikTokEditor
 
 # Получаем токен и порт из переменных окружения
- TOKEN = "8024034425:AAGIIRzgZIzeABT2Pzikmc71TDUZFiidtiU"
-
-PORT = int(os.getenv("PORT", 8000))  # 8000 — это значение по умолчанию, если не указано в переменных
+TOKEN = "8024034425:AAGIIRzgZIzeABT2Pzikmc71TDUZFiidtiU"
+PORT = int(os.getenv("PORT", 8000))  # 8000 — значение по умолчанию
 
 # Путь для сохранения обработанных видео
 OUTPUT_DIR = "result"
@@ -47,11 +46,10 @@ if __name__ == "__main__":
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.VIDEO, process_video))
 
-    # Настроить вебхук для работы через Render
+    # Настраиваем вебхук для работы через Render
     app.run_webhook(
-        listen="0.0.0.0",  # Это означает, что сервис будет слушать на всех интерфейсах
-        port=PORT,  # Используем порт из переменной окружения
-        webhook_url="https://your-app.onrender.com",  # Заменить на URL твоего сервиса на Render
-        secret_token=os.getenv("RENDER_SECRET")  # Секретный токен для вебхуков
+        listen="0.0.0.0",
+        port=PORT,
+        webhook_url="https://your-app.onrender.com",  # Замените на ваш URL
+        secret_token=os.getenv("RENDER_SECRET")
     )
-
