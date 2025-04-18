@@ -4,54 +4,54 @@ from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters
 from TikTokEditor import TikTokEditor
 
-# Конфигурация
-TOKEN = "8024034425:AAGIIRzgZIzeABT2Pzikmc71TDUZFiidtiU"
-OUTPUT_DIR = os.path.abspath("result")  # Абсолютный путь
-MAX_VIDEO_SIZE = 50 * 1024 * 1024  # 50 MB
+# Получаем токен и порт из переменных окружения
+ TOKEN = "8024034425:AAGIIRzgZIzeABT2Pzikmc71TDUZFiidtiU"
 
-# Инициализация
+PORT = int(os.getenv("PORT", 8000))  # 8000 — это значение по умолчанию, если не указано в переменных
+
+# Путь для сохранения обработанных видео
+OUTPUT_DIR = "result"
+
+# Инициализация редактора
 editor = TikTokEditor()
-logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 
-async def start(update: Update, _):
-    await update.message.reply_text("🎬 Отправь мне видео, и я обработаю его для TikTok!")
+async def start(update: Update, context):
+    await update.message.reply_text("Привет! Отправь мне видео, и я его обработаю.")
 
-async def process_video(update: Update, _):
+async def process_video(update: Update, context):
     try:
-        # Проверка размера видео
-        if update.message.video.file_size > MAX_VIDEO_SIZE:
-            await update.message.reply_text("❌ Файл слишком большой (макс. 50 МБ)")
-            return
-
-        # Скачивание
-        file = await update.message.video.get_file()
-        input_path = os.path.abspath(f"temp_{update.message.message_id}.mp4")
+        # Скачиваем видео
+        file = await update.message.effective_attachment.get_file()
+        input_path = f"temp_{update.message.message_id}.mp4"
         await file.download_to_drive(input_path)
         
-        # Обработка
+        # Обрабатываем видео
         output_path = editor.process_video(input_path, OUTPUT_DIR)
         
-        if output_path and os.path.exists(output_path):
+        if output_path:
+            # Отправляем обратно обработанное видео
             await update.message.reply_video(video=open(output_path, 'rb'))
-            os.remove(input_path)  # Чистка временных файлов
+            os.remove(input_path)
         else:
-            await update.message.reply_text("😢 Не удалось обработать видео")
+            await update.message.reply_text("Ошибка обработки 😢")
 
     except Exception as e:
-        logging.error(f"Error: {str(e)}")
-        await update.message.reply_text("⚠️ Произошла ошибка. Попробуйте ещё раз.")
-
-    finally:
-        # Удаляем временные файлы, если остались
-        if 'input_path' in locals() and os.path.exists(input_path):
-            os.remove(input_path)
+        logging.error(str(e))
+        await update.message.reply_text("Что-то пошло не так!")
 
 if __name__ == "__main__":
-    # Создаем папку для результатов при запуске
-    os.makedirs(OUTPUT_DIR, exist_ok=True)
-    
+    # Создаем приложение с токеном
     app = Application.builder().token(TOKEN).build()
+
+    # Добавляем обработчики команд и сообщений
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.VIDEO, process_video))
-    
-    app.run_polling()
+
+    # Настроить вебхук для работы через Render
+    app.run_webhook(
+        listen="0.0.0.0",  # Это означает, что сервис будет слушать на всех интерфейсах
+        port=PORT,  # Используем порт из переменной окружения
+        webhook_url="https://your-app.onrender.com",  # Заменить на URL твоего сервиса на Render
+        secret_token=os.getenv("RENDER_SECRET")  # Секретный токен для вебхуков
+    )
+
