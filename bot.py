@@ -15,7 +15,11 @@ TEMP_DIR = os.path.abspath("temp")
 editor = TikTokEditor()
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    level=logging.INFO
+    level=logging.INFO,
+    handlers=[
+        logging.StreamHandler(),
+        logging.FileHandler("bot.log")
+    ]
 )
 
 async def start(update: Update, _):
@@ -23,41 +27,52 @@ async def start(update: Update, _):
 
 async def process_video(update: Update, _):
     try:
-        # Создаем временные папки
+        # Создание директорий
         os.makedirs(TEMP_DIR, exist_ok=True)
         os.makedirs(OUTPUT_DIR, exist_ok=True)
+        logging.info("Директории созданы")
 
         # Скачивание видео
         file = await update.message.effective_attachment.get_file()
         input_path = os.path.join(TEMP_DIR, f"temp_{update.message.id}.mp4")
         await file.download_to_drive(input_path)
+        logging.info("Видео скачано: %s", input_path)
 
         # Обработка
         output_path = editor.process_video(input_path, OUTPUT_DIR)
         
         if output_path and os.path.exists(output_path):
-            # Отправка результата
-            await update.message.reply_video(video=open(output_path, "rb"))
-            
-            # Очистка
-            os.remove(input_path)
-            os.remove(output_path)
+            try:
+                await update.message.reply_video(
+                    video=open(output_path, "rb"),
+                    caption="✅ Обработанное видео"
+                )
+                logging.info("Видео отправлено")
+            except Exception as send_error:
+                logging.error("Ошибка отправки: %s", str(send_error))
+                await update.message.reply_text("⚠️ Не удалось отправить видео")
+            finally:
+                os.remove(input_path)
+                os.remove(output_path)
+                logging.info("Временные файлы удалены")
         else:
             await update.message.reply_text("😢 Не удалось обработать видео")
 
     except Exception as e:
-        logging.error(f"Ошибка: {str(e)}", exc_info=True)
-        await update.message.reply_text("⚠️ Произошла внутренняя ошибка")
+        logging.error("Критическая ошибка: %s", str(e), exc_info=True)
+        await update.message.reply_text("⚠️ Произошла системная ошибка")
 
 if __name__ == "__main__":
-    app = Application.builder().token(TOKEN).build()
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(MessageHandler(filters.VIDEO, process_video))
-    
-    # Вебхук
-    app.run_webhook(
-        listen="0.0.0.0",
-        port=PORT,
-        webhook_url=WEBHOOK_URL,
-        secret_token=os.getenv("RENDER_SECRET")
-    )
+    try:
+        app = Application.builder().token(TOKEN).build()
+        app.add_handler(CommandHandler("start", start))
+        app.add_handler(MessageHandler(filters.VIDEO, process_video))
+        
+        app.run_webhook(
+            listen="0.0.0.0",
+            port=PORT,
+            webhook_url=WEBHOOK_URL,
+            secret_token=os.getenv("RENDER_SECRET")
+        )
+    except Exception as e:
+        logging.critical("Фатальная ошибка при запуске: %s", str(e))
